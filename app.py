@@ -1,4 +1,8 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
+import sqlite3
+
+DB_PATH = 'db/srms_db.db'
+
 app = Flask(__name__)
  
 # @app.route("/")
@@ -28,6 +32,19 @@ def teachers():
 def subjects():
      return render_template('subjects.html')
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST', 'PATCH', 'DELETE'])
 def login():
-     return render_template('login.html')
+     query_result = None
+     if request.method == 'POST':
+          #RUN  a sqlite3 query when the button is click3d
+          conn = sqlite3.connect(DB_PATH)
+          cursor = conn.cursor()
+          cursor.execute('SELECT COUNT(*) FROM tbl_students')
+          ##[{id:001, reNo: 'is'}]
+          query_result == cursor.fetchone();
+          for row in query_result:
+               print(row);
+          
+          conn.close()
+
+     return render_template('login.html', query_result=query_result)

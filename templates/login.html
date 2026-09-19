@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Login \u2014 SRMS</title>
+        <title>Login SRMS</title>
 
         <link 
             rel="stylesheet" 
@@ -18,15 +18,23 @@
 
                     <div class="card shadow-sm">
                         <div class="card-body p-4">
-                            <h3 class="text-center mb-4">SRM Login</h3>
+                            <h3 class="text-center mb-4">SRMS By Ahmad Login</h3>
+                            
+                            {% if query_result is  not none %}
+                            <div class="alert alert-info">Students in database: {{query_result}}</div>
+                            {% endif %}
 
-                            <form>
+                            <form method="POST" action="{{ url_for('login') }}">
                                 <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" name="username" class="form-control" placeholder="Entery Your Username">
+                                </div>
+                                <div class="mb-3">    
                                     <label class="form-label">Username</label>
                                     <input type="password" class="form-control" placeholder="Enter Password">
                                 </div>
-                                <!-- <button typer="Submit" class="btn btn-primary w-100">Log In</button>-->
-                                <a href="{{ url_for('home') }}" class="btn btn-primary w-100">Log In</a>                           
+                                <button typer="Submit" class="btn btn-primary w-100">Log In</button>
+                                <!-- <a href="{{ url_for('home') }}" class="btn btn-primary w-100">Log In</a> -->                          
                             </form>
 
                         </div>
