@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Meetings & Feedback{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Mentoring Meetings & Feedback</h1>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>{% if user_type == 'Mentor' %}Mentee{% else %}Mentor{% endif %}</th>
+                        <th>Notes / Agenda</th>
+                        <th>Status</th>
+                        <th>Feedback & Rating</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meeting in meetings %}
+                    <tr>
+                        <td><strong>{{ meeting[1] }}</strong></td>
+                        <td>{{ meeting[2] }}</td>
+                        <td>{{ meeting[3] or 'No notes added.' }}</td>
+                        <td>
+                            {% if meeting[4] == 'Scheduled' %}
+                            <span class="badge bg-warning text-dark">Scheduled</span>
+                            {% elif meeting[4] == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if meeting[5] %}
+                                <span class="text-warning font-weight-bold">
+                                    {% for i in range(meeting[5]) %}★{% endfor %} ({{ meeting[5] }}/5)
+                                </span>
+                                {% if meeting[6] %}<br><small class="text-muted">"{{ meeting[6] }}"</small>{% endif %}
+                            {% else %}
+                                <span class="text-muted small">No feedback submitted</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if meeting[4] == 'Scheduled' and not meeting[5] %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal{{ meeting[0] }}">
+                                Submit Feedback
+                            </button>
+
+                            <!-- Feedback Modal -->
+                            <div class="modal fade text-start" id="feedbackModal{{ meeting[0] }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Meeting Feedback & Rating</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('submit_feedback', meeting_id=meeting[0]) }}">
+                                            <div class="modal-body">
+                                                <p><strong>Session with {{ meeting[2] }}</strong> on {{ meeting[1] }}</p>
+                                                <div class="mb-3">
+                                                    <label class="form-label font-weight-bold">Rating (1 to 5 Stars)</label>
+                                                    <select name="rating" class="form-select" required>
+                                                        <option value="5">⭐⭐⭐⭐⭐ 5 - Excellent</option>
+                                                        <option value="4">⭐⭐⭐⭐ 4 - Very Good</option>
+                                                        <option value="3">⭐⭐⭐ 3 - Good</option>
+                                                        <option value="2">⭐⭐ 2 - Fair</option>
+                                                        <option value="1">⭐ 1 - Poor</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label font-weight-bold">Comments / Notes</label>
+                                                    <textarea name="comments" class="form-control" rows="3" placeholder="How went the session? Key takeaways..."></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-success">Submit Feedback</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-muted text-center py-4">No meetings recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

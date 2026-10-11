@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Mentorship Hub{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-muted mb-1">Administration</p>
+        <h1 class="h2">Admin Dashboard</h1>
+    </div>
+    <span class="badge bg-dark fs-6 p-2">System Administrator</span>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100 border-start border-4 border-primary">
+            <div class="card-body">
+                <h6 class="text-muted">Active Mentors</h6>
+                <p class="display-6 mb-0 text-primary">{{ mentors|length }}</p>
+                <small class="text-muted">{{ archived_mentors|length }} archived</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100 border-start border-4 border-success">
+            <div class="card-body">
+                <h6 class="text-muted">Active Mentees</h6>
+                <p class="display-6 mb-0 text-success">{{ mentees|length }}</p>
+                <small class="text-muted">{{ archived_mentees|length }} archived</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100 border-start border-4 border-info">
+            <div class="card-body">
+                <h6 class="text-muted">Programs</h6>
+                <p class="display-6 mb-0 text-info">{{ programs|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100 border-start border-4 border-warning">
+            <div class="card-body">
+                <h6 class="text-muted">Pairings / Meetings</h6>
+                <p class="display-6 mb-0 text-warning">{{ matches|length }} / {{ meetings|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAIR / EDIT PAIRING FORM -->
+<div class="card shadow-sm border-primary mb-4" id="pairing-section">
+    <div class="card-body">
+        <h2 class="h5 mb-3 text-primary">
+            {% if match_to_edit %}
+            ✏️ Edit Pairing #{{ match_to_edit[0] }}
+            {% else %}
+            🔗 Pair Mentor & Mentee
+            {% endif %}
+        </h2>
+
+        <form method="POST" action="{{ url_for('admin_edit_match', match_id=match_to_edit[0]) if match_to_edit else url_for('admin_add_match') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Select Mentor</label>
+                    <select name="mentor_id" class="form-select" required>
+                        <option value="">-- Choose Mentor --</option>
+                        {% for mentor in mentors %}
+                        <option value="{{ mentor[0] }}" {% if match_to_edit and match_to_edit[2] == mentor[0] %}selected{% endif %}>
+                            {{ mentor[1] }} ({{ mentor[3] or 'General' }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Select Mentee</label>
+                    <select name="mentee_id" class="form-select" required>
+                        <option value="">-- Choose Mentee --</option>
+                        {% for mentee in mentees %}
+                        <option value="{{ mentee[0] }}" {% if match_to_edit and match_to_edit[3] == mentee[0] %}selected{% endif %}>
+                            {{ mentee[1] }} ({{ mentee[3] or 'No goal' }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Assign to Program</label>
+                    <select name="program_id" class="form-select">
+                        <option value="">-- General / No Specific Program --</option>
+                        {% for program in programs %}
+                        <option value="{{ program[0] }}" {% if match_to_edit and match_to_edit[1] == program[0] %}selected{% endif %}>
+                            {{ program[1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    {% if match_to_edit %}Save Pairing Changes{% else %}Pair & Notify via Email{% endif %}
+                </button>
+                {% if match_to_edit %}
+                <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Cancel Edit</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ACTIVE PAIRINGS (MATCHES) TABLE -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0">Active Pairings</h2>
+            <input type="text" id="searchPairings" onkeyup="filterTable('searchPairings', 'tablePairings')" class="form-control form-control-sm w-25" placeholder="🔍 Search pairings...">
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="tablePairings">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mentor</th>
+                        <th>Mentee</th>
+                        <th>Program</th>
+                        <th>Date Paired</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matches %}
+                    <tr>
+                        <td><strong>{{ match[1] }}</strong></td>
+                        <td><strong>{{ match[2] }}</strong></td>
+                        <td><span class="badge bg-info text-dark">{{ match[3] }}</span></td>
+                        <td><small class="text-muted">{{ match[4] }}</small></td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin', edit_match=match[0]) }}#pairing-section" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+                            <form method="POST" action="{{ url_for('admin_delete_match', match_id=match[0]) }}" class="d-inline" onsubmit="return confirm('Unpair this mentor and mentee? An unpairing email notification will be sent.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Unpair</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-muted">No active pairings found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MENTOR FORM -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Add New Mentor</h2>
+        <form method="POST" action="{{ url_for('admin_add_mentor') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Dr. Aminu Bello" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="mentor@example.com" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Expertise</label>
+                    <input type="text" name="expertise" class="form-control" placeholder="e.g. Data Science">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Add Mentor</button>
+        </form>
+    </div>
+</div>
+
+<!-- MANAGE MENTORS (ACTIVE & ARCHIVED TABS) -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0">Manage Mentors</h2>
+            <input type="text" id="searchMentors" onkeyup="filterTable('searchMentors', 'tableMentors')" class="form-control form-control-sm w-25" placeholder="🔍 Search mentors...">
+        </div>
+
+        <ul class="nav nav-tabs mb-3" id="mentorTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="active-mentors-tab" data-bs-toggle="tab" data-bs-target="#active-mentors" type="button">Active Mentors ({{ mentors|length }})</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="archived-mentors-tab" data-bs-toggle="tab" data-bs-target="#archived-mentors" type="button">Archived ({{ archived_mentors|length }})</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mentorTabContent">
+            <div class="tab-pane fade show active" id="active-mentors">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tableMentors">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Expertise</th><th class="text-end">Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mentor in mentors %}
+                            <tr>
+                                <td>{{ mentor[1] }}</td>
+                                <td>{{ mentor[2] }}</td>
+                                <td>{{ mentor[3] or 'Not set' }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_toggle_mentor_status', mentor_id=mentor[0]) }}" class="d-inline">
+                                        <button class="btn btn-sm btn-outline-warning">Deactivate & Archive</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted">No active mentors found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="archived-mentors">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Expertise</th><th class="text-end">Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mentor in archived_mentors %}
+                            <tr class="table-secondary">
+                                <td>{{ mentor[1] }}</td>
+                                <td>{{ mentor[2] }}</td>
+                                <td>{{ mentor[3] or 'Not set' }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_toggle_mentor_status', mentor_id=mentor[0]) }}" class="d-inline">
+                                        <button class="btn btn-sm btn-success">Reactivate</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted">No archived mentors.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MENTEE FORM -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Add New Mentee</h2>
+        <form method="POST" action="{{ url_for('admin_add_mentee') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Fatima Sani" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="mentee@example.com" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Goal / Interest</label>
+                    <input type="text" name="goal" class="form-control" placeholder="e.g. Web Dev">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Add Mentee</button>
+        </form>
+    </div>
+</div>
+
+<!-- MANAGE MENTEES (ACTIVE & ARCHIVED TABS) -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0">Manage Mentees</h2>
+            <input type="text" id="searchMentees" onkeyup="filterTable('searchMentees', 'tableMentees')" class="form-control form-control-sm w-25" placeholder="🔍 Search mentees...">
+        </div>
+
+        <ul class="nav nav-tabs mb-3" id="menteeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="active-mentees-tab" data-bs-toggle="tab" data-bs-target="#active-mentees" type="button">Active Mentees ({{ mentees|length }})</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="archived-mentees-tab" data-bs-toggle="tab" data-bs-target="#archived-mentees" type="button">Archived ({{ archived_mentees|length }})</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="menteeTabContent">
+            <div class="tab-pane fade show active" id="active-mentees">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tableMentees">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Goal</th><th class="text-end">Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mentee in mentees %}
+                            <tr>
+                                <td>{{ mentee[1] }}</td>
+                                <td>{{ mentee[2] }}</td>
+                                <td>{{ mentee[3] or 'Not set' }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_toggle_mentee_status', mentee_id=mentee[0]) }}" class="d-inline">
+                                        <button class="btn btn-sm btn-outline-warning">Deactivate & Archive</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted">No active mentees found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="archived-mentees">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Goal</th><th class="text-end">Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mentee in archived_mentees %}
+                            <tr class="table-secondary">
+                                <td>{{ mentee[1] }}</td>
+                                <td>{{ mentee[2] }}</td>
+                                <td>{{ mentee[3] or 'Not set' }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_toggle_mentee_status', mentee_id=mentee[0]) }}" class="d-inline">
+                                        <button class="btn btn-sm btn-success">Reactivate</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted">No archived mentees.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADD PROGRAM FORM -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Add Program</h2>
+        <form method="POST" action="{{ url_for('admin_add_program') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Program Name</label>
+                    <input type="text" name="program_name" class="form-control" placeholder="e.g. Software Engineering 2026" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control" placeholder="Brief summary">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Add Program</button>
+        </form>
+    </div>
+</div>
+
+<!-- MANAGE PROGRAMS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Manage Programs</h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr><th>Program Name</th><th>Start Date</th><th>End Date</th><th>Description</th><th class="text-end">Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for program in programs %}
+                    <tr>
+                        <td><strong>{{ program[1] }}</strong></td>
+                        <td>{{ program[2] }}</td>
+                        <td>{{ program[3] }}</td>
+                        <td>{{ program[4] or 'N/A' }}</td>
+                        <td class="text-end">
+                            <form method="POST" action="{{ url_for('admin_delete_program', program_id=program[0]) }}" class="d-inline" onsubmit="return confirm('Delete this program?');">
+                                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-muted">No programs found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SCHEDULE MEETING -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Schedule Meeting</h2>
+        <form method="POST" action="{{ url_for('admin_add_meeting') }}">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Mentor / Mentee Pair</label>
+                    <select name="match_id" class="form-select" required>
+                        <option value="">Select active pairing</option>
+                        {% for match in matches %}
+                        <option value="{{ match[0] }}">{{ match[1] }} (Mentor) &mdash; {{ match[2] }} (Mentee) [{{ match[3] }}]</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Meeting Date & Time</label>
+                    <input type="datetime-local" name="meeting_date" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Notes / Agenda</label>
+                    <input type="text" name="notes" class="form-control" placeholder="e.g. Monthly Check-in">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Schedule & Notify</button>
+        </form>
+    </div>
+</div>
+
+<!-- MEETINGS MANAGEMENT -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Manage Scheduled Meetings</h2>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr><th>Date</th><th>Mentor</th><th>Mentee</th><th>Notes</th><th>Status</th><th class="text-end">Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for meeting in meetings %}
+                    <tr>
+                        <td>{{ meeting[1] }}</td>
+                        <td>{{ meeting[2] }}</td>
+                        <td>{{ meeting[3] }}</td>
+                        <td>{{ meeting[4] or 'No notes' }}</td>
+                        <td>
+                            {% if meeting[5] == 'Scheduled' %}
+                            <span class="badge bg-warning text-dark">Scheduled</span>
+                            {% elif meeting[5] == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if meeting[5] == 'Scheduled' %}
+                            <form method="POST" action="{{ url_for('admin_cancel_meeting', meeting_id=meeting[0]) }}" class="d-inline" onsubmit="return confirm('Cancel this meeting?');">
+                                <button class="btn btn-sm btn-outline-danger">Cancel</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-muted">No meetings found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ACTIVITY / NOTIFICATIONS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="h5 mb-1">Activity Audit Log</h2>
+                <p class="text-muted mb-0">System events and email notifications</p>
+            </div>
+            <span class="badge bg-primary">{{ activities|length }} recent</span>
+        </div>
+
+        {% if activities %}
+        <div class="list-group">
+            {% for activity in activities %}
+            <div class="list-group-item d-flex justify-content-between">
+                <span>{{ activity[0] }}</span>
+                <small class="text-muted">{{ activity[1] }}</small>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No activities recorded yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search Filter Script -->
+<script>
+function filterTable(inputId, tableId) {
+    var input = document.getElementById(inputId);
+    var filter = input.value.toUpperCase();
+    var table = document.getElementById(tableId);
+    var tr = table.getElementsByTagName("tr");
+
+    for (var i = 1; i < tr.length; i++) {
+        var visible = false;
+        var tdList = tr[i].getElementsByTagName("td");
+        for (var j = 0; j < tdList.length; j++) {
+            if (tdList[j]) {
+                var txtValue = tdList[j].textContent || tdList[j].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    visible = true;
+                    break;
+                }
+            }
+        }
+        tr[i].style.display = visible ? "" : "none";
+    }
+}
+</script>
+
+{% endblock %}
