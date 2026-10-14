@@ -11,15 +11,37 @@
         <form method="POST" action="{{ url_for('edit_mentor', mentor_id=mentor_to_edit[0]) if mentor_to_edit else url_for('add_mentor') }}">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label for="name" class="form-label">Name</label>
+                    <label for="name" class="form-label font-weight-bold">Name</label>
                     <input type="text" id="name" name="name" class="form-control" value="{{ mentor_to_edit[1] if mentor_to_edit else '' }}" required>
                 </div>
                 <div class="col-md-4">
-                    <label for="email" class="form-label">Email</label>
+                    <label for="email" class="form-label font-weight-bold">Email</label>
                     <input type="email" id="email" name="email" class="form-control" value="{{ mentor_to_edit[2] if mentor_to_edit else '' }}" required>
                 </div>
                 <div class="col-md-4">
-                    <label for="expertise" class="form-label">Expertise</label>
+                    <label for="gender" class="form-label font-weight-bold">Gender</label>
+                    <select id="gender" name="gender" class="form-select" required>
+                        <option value="">-- Select Gender --</option>
+                        <option value="Male" {% if mentor_to_edit and mentor_to_edit[4] == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if mentor_to_edit and mentor_to_edit[4] == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if mentor_to_edit and mentor_to_edit[4] == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="highest_qualification" class="form-label font-weight-bold">Highest Academic Qualification</label>
+                    <select id="highest_qualification" name="highest_qualification" class="form-select" required>
+                        <option value="">-- Select Qualification --</option>
+                        <option value="Doctorate / Ph.D." {% if mentor_to_edit and mentor_to_edit[5] == 'Doctorate / Ph.D.' %}selected{% endif %}>Doctorate / Ph.D.</option>
+                        <option value="Master's Degree (M.Sc / M.A / M.Ed)" {% if mentor_to_edit and mentor_to_edit[5] == "Master's Degree (M.Sc / M.A / M.Ed)" %}selected{% endif %}>Master's Degree (M.Sc / M.A / M.Ed)</option>
+                        <option value="Postgraduate Diploma (PGD)" {% if mentor_to_edit and mentor_to_edit[5] == 'Postgraduate Diploma (PGD)' %}selected{% endif %}>Postgraduate Diploma (PGD)</option>
+                        <option value="Bachelor's Degree (B.Sc / B.A / B.Eng)" {% if mentor_to_edit and mentor_to_edit[5] == "Bachelor's Degree (B.Sc / B.A / B.Eng)" %}selected{% endif %}>Bachelor's Degree (B.Sc / B.A / B.Eng)</option>
+                        <option value="Higher National Diploma (HND)" {% if mentor_to_edit and mentor_to_edit[5] == 'Higher National Diploma (HND)' %}selected{% endif %}>Higher National Diploma (HND)</option>
+                        <option value="National Diploma (ND / Diploma)" {% if mentor_to_edit and mentor_to_edit[5] == 'National Diploma (ND / Diploma)' %}selected{% endif %}>National Diploma (ND / Diploma)</option>
+                        <option value="Professional Certification / Other" {% if mentor_to_edit and mentor_to_edit[5] == 'Professional Certification / Other' %}selected{% endif %}>Professional Certification / Other</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="expertise" class="form-label font-weight-bold">Expertise</label>
                     <input type="text" id="expertise" name="expertise" class="form-control" value="{{ mentor_to_edit[3] if mentor_to_edit else '' }}">
                 </div>
             </div>
@@ -39,10 +61,12 @@
         {% if mentors %}
         <div class="table-responsive">
             <table class="table align-middle">
-                <thead>
+                <thead class="table-light">
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Gender</th>
+                        <th>Highest Qualification</th>
                         <th>Expertise</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -50,13 +74,15 @@
                 <tbody>
                     {% for mentor in mentors %}
                     <tr>
-                        <td>{{ mentor[1] }}</td>
+                        <td><strong>{{ mentor[1] }}</strong></td>
                         <td>{{ mentor[2] }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ mentor[4] }}</span></td>
+                        <td><small class="text-primary font-weight-bold">{{ mentor[5] }}</small></td>
                         <td>{{ mentor[3] or 'Not set' }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('mentors', edit=mentor[0]) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                            <form method="POST" action="{{ url_for('delete_mentor', mentor_id=mentor[0]) }}" class="d-inline" onsubmit="return confirm('Delete this mentor and their related records? This cannot be undone.');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            <form method="POST" action="{{ url_for('delete_mentor', mentor_id=mentor[0]) }}" class="d-inline" onsubmit="return confirm('Archive this mentor? This will deactivate their login.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Archive</button>
                             </form>
                         </td>
                     </tr>

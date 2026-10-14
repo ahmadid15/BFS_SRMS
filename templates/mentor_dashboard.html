@@ -4,41 +4,100 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <p class="text-muted mb-1">Mentor workspace</p>
-        <h1>Welcome, {{ user_name }}</h1>
+        <h1 class="h2">Welcome, {{ user_name }}</h1>
     </div>
-    <span class="badge bg-primary fs-6">Mentor</span>
+    <span class="badge bg-primary fs-6 p-2">Mentor</span>
 </div>
+
+<!-- PENDING MEETING REQUESTS ALERT -->
+{% if pending_requests %}
+<div class="alert alert-info border-info shadow-sm mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="alert-heading mb-1">🔔 You have {{ pending_requests|length }} pending meeting request{{ 's' if pending_requests|length != 1 else '' }}!</h5>
+            <p class="mb-0 small">Your mentees have requested a mentoring session. Please review and accept or decline below.</p>
+        </div>
+        <a href="{{ url_for('meetings') }}" class="btn btn-sm btn-primary">Manage in Meetings</a>
+    </div>
+    <div class="mt-3">
+        <ul class="list-group list-group-flush bg-white rounded border">
+            {% for req in pending_requests %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ req.partner_name }}</strong> requested a session for <strong>{{ req.date }}</strong>
+                    <br><small class="text-muted">{{ req.notes }} {% if req.meeting_details %}&mdash; "{{ req.meeting_details }}"{% endif %}</small>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-success me-1" data-bs-toggle="modal" data-bs-target="#acceptModal{{ req.id }}">
+                        Accept & Set Link
+                    </button>
+                    <form method="POST" action="{{ url_for('cancel_meeting', meeting_id=req.id) }}" class="d-inline" onsubmit="return confirm('Decline this meeting request?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
+                    </form>
+                </div>
+
+                <!-- Accept Modal -->
+                <div class="modal fade text-start" id="acceptModal{{ req.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title">Accept Meeting Request</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('accept_meeting', meeting_id=req.id) }}">
+                                <div class="modal-body">
+                                    <p>Meeting with <strong>{{ req.partner_name }}</strong> on <strong>{{ req.date }}</strong></p>
+                                    <div class="mb-3">
+                                        <label class="form-label font-weight-bold">Microsoft Teams Meeting Link</label>
+                                        <input type="url" name="meeting_link" class="form-control" value="{{ req.meeting_link }}" placeholder="https://teams.microsoft.com/l/meetup-join/...">
+                                        <small class="text-muted">Enter the Teams link for the call. An email confirmation will be sent to {{ req.partner_name }}.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-success">Confirm & Notify Mentee</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 
 <div class="row g-4 mb-4">
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-primary">
             <div class="card-body">
-                <h5 class="card-title">Your profile</h5>
+                <h5 class="card-title text-primary">Your Profile</h5>
                 {% if profile %}
                 <p class="mb-1"><strong>{{ profile[0] }}</strong></p>
-                <p class="text-muted mb-1">{{ profile[1] }}</p>
-                <p class="text-muted mb-0">Expertise: {{ profile[2] or 'Not set' }}</p>
+                <p class="text-muted mb-1"><small>{{ profile[1] }}</small></p>
+                <p class="mb-1"><strong>Gender:</strong> <span class="badge bg-light text-dark border">{{ profile[3] }}</span></p>
+                <p class="mb-1"><strong>Qualification:</strong> <small class="text-primary font-weight-bold">{{ profile[4] }}</small></p>
+                <p class="text-muted mb-0"><strong>Expertise:</strong> {{ profile[2] or 'Not set' }}</p>
                 {% else %}
-                <p class="text-muted">
-                    Profile details unavailable.
-                </p>
+                <p class="text-muted">Profile details unavailable.</p>
                 {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-info">
             <div class="card-body">
-                <h5 class="card-title">Programs</h5>
+                <h5 class="card-title text-info">Active Programs</h5>
                 <p class="display-6 mb-0">{{ programs|length }}</p>
-                <p class="text-muted mb-0">active assignments</p>
+                <p class="text-muted mb-0">mentorship tracks assigned</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-success">
             <div class="card-body">
-                <h5 class="card-title">Mentees</h5>
+                <h5 class="card-title text-success">Assigned Mentees</h5>
                 <p class="display-6 mb-0">{{ mentees|length }}</p>
                 <p class="text-muted mb-0">people you support</p>
             </div>
@@ -50,20 +109,22 @@
     <div class="col-lg-7">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h4">Your mentees</h2>
+                <h2 class="h5 mb-3">Your Assigned Mentees</h2>
                 {% if mentees %}
                 <div class="table-responsive">
                     <table class="table align-middle">
-                        <thead>
+                        <thead class="table-light">
                             <tr>
                                 <th>Name</th>
-                                <th>Goal</th>
+                                <th>Academic Status</th>
+                                <th>Goal / Interests</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for mentee in mentees %}
                             <tr>
-                                <td>{{ mentee[0] }}</td>
+                                <td><strong>{{ mentee[0] }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ mentee[2] }}</span></td>
                                 <td>{{ mentee[1] or 'Not set' }}</td>
                             </tr>
                             {% endfor %}
@@ -79,13 +140,23 @@
     <div class="col-lg-5">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h4">Recent meetings</h2>
+                <h2 class="h5 mb-3">Recent & Upcoming Meetings</h2>
                 {% if meetings %}
                 <ul class="list-group list-group-flush">
                     {% for meeting in meetings[:5] %}
                     <li class="list-group-item px-0">
-                        <strong>{{ meeting[0] }}</strong> with {{ meeting[1] }}<br>
-                        <small class="text-muted">{{ meeting[2] or 'No notes added.' }}</small>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>{{ meeting.date }}</strong>
+                            <span class="badge {% if meeting.status == 'Scheduled' %}bg-warning text-dark{% elif meeting.status == 'Requested' %}bg-info text-dark{% elif meeting.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ meeting.status }}
+                            </span>
+                        </div>
+                        <small class="text-dark">With {{ meeting.partner_name }} &mdash; {{ meeting.notes or 'Session' }}</small>
+                        {% if meeting.meeting_link %}
+                        <div class="mt-1">
+                            <a href="{{ meeting.meeting_link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0">Join Teams</a>
+                        </div>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -101,8 +172,9 @@
     <div class="card-body">
         <h2 class="h5 mb-3">Quick actions</h2>
         <div class="d-flex flex-wrap gap-3">
-            <a class="btn btn-primary" href="{{ url_for('meetings') }}">View meetings</a>
-            <a class="btn btn-outline-primary" href="{{ url_for('programs') }}">View programs</a>
+            <a class="btn btn-primary" href="{{ url_for('meetings') }}">View All Meetings & Feedback</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('programs') }}">View Programs</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('mentees') }}">Manage Mentees</a>
         </div>
     </div>
 </div>

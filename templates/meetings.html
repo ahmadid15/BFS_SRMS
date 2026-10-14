@@ -2,9 +2,70 @@
 {% block title %}Meetings & Feedback{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Mentoring Meetings & Feedback</h1>
+    <div>
+        <h1 class="h2 mb-1">Mentoring Meetings & Feedback</h1>
+        <p class="text-muted mb-0">View scheduled sessions, join Teams calls, request meetings, and leave session feedback.</p>
+    </div>
+    {% if user_type == 'Mentee' and assigned_mentors %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requestMeetingModal">
+        <i class="bi bi-calendar-plus"></i> Request Meeting with Mentor
+    </button>
+    {% endif %}
 </div>
 
+<!-- MENTEE REQUEST MEETING MODAL -->
+{% if user_type == 'Mentee' and assigned_mentors %}
+<div class="modal fade" id="requestMeetingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Request a Meeting with Mentor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('request_meeting') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Select Mentor</label>
+                        <select name="mentor_id" class="form-select" required>
+                            <option value="">-- Choose Assigned Mentor --</option>
+                            {% for mentor in assigned_mentors %}
+                            <option value="{{ mentor[0] }}">{{ mentor[1] }} ({{ mentor[2] or 'General' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Preferred Date & Time</label>
+                        <input type="datetime-local" name="meeting_date" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Meeting Topic / Title</label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. CV Review / Career Guidance" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Details / Questions for Mentor</label>
+                        <textarea name="meeting_details" class="form-control" rows="3" placeholder="Explain what topics or challenges you want to discuss..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Microsoft Teams Meeting Link (Optional)</label>
+                        <input type="url" name="meeting_link" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/...">
+                        <small class="text-muted">You can leave this blank if your mentor will provide the meeting link.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Meeting Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- MEETINGS TABLE -->
 <div class="card shadow-sm">
     <div class="card-body">
         <div class="table-responsive">
@@ -13,85 +74,164 @@
                     <tr>
                         <th>Date & Time</th>
                         <th>{% if user_type == 'Mentor' %}Mentee{% else %}Mentor{% endif %}</th>
-                        <th>Notes / Agenda</th>
+                        <th>Agenda & Details</th>
+                        <th>Teams Call</th>
                         <th>Status</th>
-                        <th>Feedback & Rating</th>
-                        <th class="text-end">Action</th>
+                        <th>Session Feedback</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for meeting in meetings %}
                     <tr>
-                        <td><strong>{{ meeting[1] }}</strong></td>
-                        <td>{{ meeting[2] }}</td>
-                        <td>{{ meeting[3] or 'No notes added.' }}</td>
                         <td>
-                            {% if meeting[4] == 'Scheduled' %}
+                            <strong>{{ meeting.date }}</strong>
+                            {% if meeting.is_upcoming %}
+                            <br><small class="text-success font-weight-bold">● Upcoming</small>
+                            {% else %}
+                            <br><small class="text-muted">● Past Session</small>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ meeting.partner_name }}</strong></td>
+                        <td>
+                            <strong>{{ meeting.notes or 'Mentorship Discussion' }}</strong>
+                            {% if meeting.meeting_details %}
+                            <br><small class="text-muted">{{ meeting.meeting_details }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if meeting.meeting_link %}
+                            <a href="{{ meeting.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                Join Teams Meeting
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No link set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if meeting.status == 'Scheduled' %}
                             <span class="badge bg-warning text-dark">Scheduled</span>
-                            {% elif meeting[4] == 'Completed' %}
+                            {% elif meeting.status == 'Requested' %}
+                            <span class="badge bg-info text-dark">Request Pending</span>
+                            {% elif meeting.status == 'Completed' %}
                             <span class="badge bg-success">Completed</span>
                             {% else %}
-                            <span class="badge bg-secondary">Cancelled</span>
+                            <span class="badge bg-danger">Cancelled</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if meeting[5] %}
-                                <span class="text-warning font-weight-bold">
-                                    {% for i in range(meeting[5]) %}★{% endfor %} ({{ meeting[5] }}/5)
-                                </span>
-                                {% if meeting[6] %}<br><small class="text-muted">"{{ meeting[6] }}"</small>{% endif %}
-                            {% else %}
-                                <span class="text-muted small">No feedback submitted</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            {% if meeting[4] == 'Scheduled' and not meeting[5] %}
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal{{ meeting[0] }}">
-                                Submit Feedback
-                            </button>
 
-                            <!-- Feedback Modal -->
-                            <div class="modal fade text-start" id="feedbackModal{{ meeting[0] }}" tabindex="-1">
+                        <!-- FEEDBACK COLUMN (Displays who made each comment, non-editable) -->
+                        <td>
+                            {% if meeting.feedbacks %}
+                                {% for fb in meeting.feedbacks %}
+                                <div class="mb-1 p-1 bg-light rounded border">
+                                    <span class="badge bg-secondary">{{ fb.user_type }} ({{ fb.submitted_by }})</span>:
+                                    <strong class="text-primary">{{ fb.rating_text }}</strong>
+                                    {% if fb.comments %}&mdash; <small class="text-dark">"{{ fb.comments }}"</small>{% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted small">No feedback yet</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- ACTIONS COLUMN -->
+                        <td class="text-end">
+                            <!-- Mentor Accept/Decline for Requested meetings -->
+                            {% if user_type == 'Mentor' and meeting.status == 'Requested' %}
+                            <button type="button" class="btn btn-sm btn-success me-1" data-bs-toggle="modal" data-bs-target="#acceptModal{{ meeting.id }}">
+                                Accept
+                            </button>
+                            <form method="POST" action="{{ url_for('cancel_meeting', meeting_id=meeting.id) }}" class="d-inline" onsubmit="return confirm('Decline this meeting request?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Decline</button>
+                            </form>
+
+                            <!-- Accept Meeting Modal (allows setting Teams link) -->
+                            <div class="modal fade text-start" id="acceptModal{{ meeting.id }}" tabindex="-1">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Meeting Feedback & Rating</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        <div class="modal-header bg-success text-white">
+                                            <h5 class="modal-title">Accept Meeting Request</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                         </div>
-                                        <form method="POST" action="{{ url_for('submit_feedback', meeting_id=meeting[0]) }}">
+                                        <form method="POST" action="{{ url_for('accept_meeting', meeting_id=meeting.id) }}">
                                             <div class="modal-body">
-                                                <p><strong>Session with {{ meeting[2] }}</strong> on {{ meeting[1] }}</p>
+                                                <p>Meeting with <strong>{{ meeting.partner_name }}</strong> on <strong>{{ meeting.date }}</strong></p>
                                                 <div class="mb-3">
-                                                    <label class="form-label font-weight-bold">Rating (1 to 5 Stars)</label>
-                                                    <select name="rating" class="form-select" required>
-                                                        <option value="5">⭐⭐⭐⭐⭐ 5 - Excellent</option>
-                                                        <option value="4">⭐⭐⭐⭐ 4 - Very Good</option>
-                                                        <option value="3">⭐⭐⭐ 3 - Good</option>
-                                                        <option value="2">⭐⭐ 2 - Fair</option>
-                                                        <option value="1">⭐ 1 - Poor</option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label font-weight-bold">Comments / Notes</label>
-                                                    <textarea name="comments" class="form-control" rows="3" placeholder="How went the session? Key takeaways..."></textarea>
+                                                    <label class="form-label font-weight-bold">Microsoft Teams Meeting Link</label>
+                                                    <input type="url" name="meeting_link" class="form-control" value="{{ meeting.meeting_link }}" placeholder="https://teams.microsoft.com/l/meetup-join/...">
+                                                    <small class="text-muted">Enter or confirm the Teams link for the call.</small>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                <button type="submit" class="btn btn-success">Submit Feedback</button>
+                                                <button type="submit" class="btn btn-success">Confirm & Notify Mentee</button>
                                             </div>
                                         </form>
                                     </div>
                                 </div>
                             </div>
-                            {% else %}
-                            <span class="text-muted small">-</span>
+                            {% endif %}
+
+                            <!-- Feedback Submission Button (Available if user hasn't submitted yet) -->
+                            {% if meeting.status in ('Scheduled', 'Completed') and not meeting.has_user_feedback %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal{{ meeting.id }}">
+                                Submit Feedback
+                            </button>
+
+                            <!-- Non-editable Feedback Modal -->
+                            <div class="modal fade text-start" id="feedbackModal{{ meeting.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-primary text-white">
+                                            <h5 class="modal-title">Submit Meeting Feedback</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('submit_feedback', meeting_id=meeting.id) }}">
+                                            <div class="modal-body">
+                                                <div class="alert alert-info py-2 small">
+                                                    Note: Feedback cannot be edited once submitted. Your name will be recorded alongside your comment.
+                                                </div>
+                                                <p class="mb-2"><strong>Session with {{ meeting.partner_name }}</strong> on {{ meeting.date }}</p>
+                                                <div class="mb-3">
+                                                    <label class="form-label font-weight-bold">Feedback Rating</label>
+                                                    <select name="rating" class="form-select" required>
+                                                        <option value="">-- Select Rating --</option>
+                                                        {% for r in valid_ratings %}
+                                                        <option value="{{ r }}">{{ r }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label font-weight-bold">Comments</label>
+                                                    <textarea name="comments" class="form-control" rows="3" placeholder="Share your experience, topics covered, and key takeaways..." required></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">Submit Final Feedback</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% elif meeting.has_user_feedback %}
+                            <span class="badge bg-success-subtle text-success border border-success small">Feedback Submitted (Locked)</span>
+                            {% endif %}
+
+                            <!-- Cancel Meeting Button: ONLY allowed for UPCOMING meetings (REQUIREMENT 5) -->
+                            {% if meeting.is_upcoming and meeting.status in ('Scheduled', 'Requested') %}
+                            <form method="POST" action="{{ url_for('cancel_meeting', meeting_id=meeting.id) }}" class="d-inline ms-1" onsubmit="return confirm('Cancel this upcoming meeting?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                            </form>
+                            {% elif not meeting.is_upcoming %}
+                            <span class="badge bg-light text-muted border ms-1">Past (Locked)</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-muted text-center py-4">No meetings recorded yet.</td>
+                        <td colspan="7" class="text-muted text-center py-4">No meetings recorded yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

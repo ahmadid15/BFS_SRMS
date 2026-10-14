@@ -4,20 +4,27 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <p class="text-muted mb-1">Mentee workspace</p>
-        <h1>Welcome, {{ user_name }}</h1>
+        <h1 class="h2">Welcome, {{ user_name }}</h1>
     </div>
-    <span class="badge bg-primary fs-6">Mentee</span>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('meetings') }}" class="btn btn-primary">
+            <i class="bi bi-calendar-event"></i> Request / View Meetings
+        </a>
+        <span class="badge bg-primary fs-6 p-2">Mentee</span>
+    </div>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-primary">
             <div class="card-body">
-                <h5 class="card-title">Your profile</h5>
+                <h5 class="card-title text-primary">Your Profile</h5>
                 {% if profile %}
                 <p class="mb-1"><strong>{{ profile[0] }}</strong></p>
-                <p class="text-muted mb-1">{{ profile[1] }}</p>
-                <p class="text-muted mb-0">Goal: {{ profile[2] or 'No goal set' }}</p>
+                <p class="text-muted mb-1"><small>{{ profile[1] }}</small></p>
+                <p class="mb-1"><strong>Gender:</strong> <span class="badge bg-light text-dark border">{{ profile[3] }}</span></p>
+                <p class="mb-1"><strong>Status:</strong> <span class="badge bg-secondary">{{ profile[4] }}</span></p>
+                <p class="text-muted mb-0"><strong>Goal:</strong> {{ profile[2] or 'No goal set' }}</p>
                 {% else %}
                 <p class="text-muted">Profile details unavailable.</p>
                 {% endif %}
@@ -25,18 +32,18 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-info">
             <div class="card-body">
-                <h5 class="card-title">Programs</h5>
+                <h5 class="card-title text-info">Programs</h5>
                 <p class="display-6 mb-0">{{ programs|length }}</p>
-                <p class="text-muted mb-0">your enrollments</p>
+                <p class="text-muted mb-0">enrolled mentorship programs</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm border-start border-4 border-success">
             <div class="card-body">
-                <h5 class="card-title">Achievements</h5>
+                <h5 class="card-title text-success">Achievements</h5>
                 <p class="display-6 mb-0">{{ achievements|length }}</p>
                 <p class="text-muted mb-0">milestones recorded</p>
             </div>
@@ -48,28 +55,30 @@
     <div class="col-lg-7">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h4">Your mentors</h2>
+                <h2 class="h5 mb-3">Your Assigned Mentors</h2>
                 {% if mentors %}
                 <div class="table-responsive">
                     <table class="table align-middle">
-                        <thead>
+                        <thead class="table-light">
                             <tr>
                                 <th>Name</th>
                                 <th>Expertise</th>
+                                <th>Qualification</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for mentor in mentors %}
                             <tr>
-                                <td>{{ mentor[0] }}</td>
-                                <td>{{ mentor[1] or 'Not set' }}</td>
+                                <td><strong>{{ mentor[1] }}</strong></td>
+                                <td>{{ mentor[2] or 'General' }}</td>
+                                <td><small class="text-primary font-weight-bold">{{ mentor[3] }}</small></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted">No mentors are assigned yet.</p>
+                <p class="text-muted">No mentors are assigned yet. Your administrator will pair you with a mentor soon.</p>
                 {% endif %}
             </div>
         </div>
@@ -77,13 +86,23 @@
     <div class="col-lg-5">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h4">Recent meetings</h2>
+                <h2 class="h5 mb-3">Recent & Upcoming Meetings</h2>
                 {% if meetings %}
                 <ul class="list-group list-group-flush">
                     {% for meeting in meetings[:5] %}
                     <li class="list-group-item px-0">
-                        <strong>{{ meeting[0] }}</strong> with {{ meeting[1] }}<br>
-                        <small class="text-muted">{{ meeting[2] or 'No notes added.' }}</small>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>{{ meeting.date }}</strong>
+                            <span class="badge {% if meeting.status == 'Scheduled' %}bg-warning text-dark{% elif meeting.status == 'Requested' %}bg-info text-dark{% elif meeting.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ meeting.status }}
+                            </span>
+                        </div>
+                        <small class="text-dark">With {{ meeting.partner_name }} &mdash; {{ meeting.notes or 'Discussion' }}</small>
+                        {% if meeting.meeting_link %}
+                        <div class="mt-1">
+                            <a href="{{ meeting.meeting_link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0">Join Teams</a>
+                        </div>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -97,12 +116,17 @@
 
 <div class="row g-4 mt-1">
     <div class="col-md-6">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm border-primary">
             <div class="card-body">
-                <h2 class="h5">Next meeting</h2>
+                <h2 class="h5 text-primary">Next Upcoming Session</h2>
                 {% if next_meeting %}
                 <p class="mb-1"><strong>{{ next_meeting[0] }}</strong> with {{ next_meeting[1] }}</p>
-                <p class="text-muted mb-0">{{ next_meeting[2] or 'No notes added.' }}</p>
+                <p class="text-muted mb-2">{{ next_meeting[2] or 'No agenda specified.' }}</p>
+                {% if next_meeting[3] %}
+                <a href="{{ next_meeting[3] }}" target="_blank" class="btn btn-sm btn-primary">
+                    <i class="bi bi-camera-video"></i> Join Teams Meeting
+                </a>
+                {% endif %}
                 {% else %}
                 <p class="text-muted mb-0">No upcoming meetings scheduled.</p>
                 {% endif %}
@@ -112,9 +136,11 @@
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h5">Recent feedback</h2>
+                <h2 class="h5">Recent Session Feedback</h2>
                 {% if feedback_summary and feedback_summary[1] %}
-                <p class="mb-1"><strong>&#9733; {{ '%.1f'|format(feedback_summary[0]) }} average</strong></p>
+                <p class="mb-1">
+                    <strong>&#9733; {{ '%.1f'|format(feedback_summary[0]) }} average</strong>
+                </p>
                 <p class="text-muted mb-0">{{ feedback_summary[1] }} session{{ 's' if feedback_summary[1] != 1 else '' }} rated</p>
                 {% else %}
                 <p class="text-muted mb-0">No feedback has been recorded yet.</p>
@@ -128,9 +154,9 @@
     <div class="card-body">
         <h2 class="h5 mb-3">Quick actions</h2>
         <div class="d-flex flex-wrap gap-3">
-            <a class="btn btn-primary" href="{{ url_for('meetings') }}">View meetings</a>
-            <a class="btn btn-outline-primary" href="{{ url_for('programs') }}">View programs</a>
-            <a class="btn btn-outline-primary" href="{{ url_for('achievements') }}">View achievements</a>
+            <a class="btn btn-primary" href="{{ url_for('meetings') }}">Request & View Meetings</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('programs') }}">View Programs</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('achievements') }}">Record Achievements</a>
         </div>
     </div>
 </div>

@@ -67,15 +67,16 @@
         <form method="POST" action="{{ url_for('admin_edit_match', match_id=match_to_edit[0]) if match_to_edit else url_for('admin_add_match') }}">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label font-weight-bold">Select Mentor</label>
+                    <label class="form-label font-weight-bold">Select Mentor (Can take multiple mentees)</label>
                     <select name="mentor_id" class="form-select" required>
                         <option value="">-- Choose Mentor --</option>
                         {% for mentor in mentors %}
                         <option value="{{ mentor[0] }}" {% if match_to_edit and match_to_edit[2] == mentor[0] %}selected{% endif %}>
-                            {{ mentor[1] }} ({{ mentor[3] or 'General' }})
+                            {{ mentor[1] }} ({{ mentor[3] or 'General' }}) &mdash; {{ mentor[7] }} mentees assigned
                         </option>
                         {% endfor %}
                     </select>
+                    <small class="text-muted">A mentor can be paired with multiple mentees.</small>
                 </div>
 
                 <div class="col-md-4">
@@ -84,7 +85,7 @@
                         <option value="">-- Choose Mentee --</option>
                         {% for mentee in mentees %}
                         <option value="{{ mentee[0] }}" {% if match_to_edit and match_to_edit[3] == mentee[0] %}selected{% endif %}>
-                            {{ mentee[1] }} ({{ mentee[3] or 'No goal' }})
+                            {{ mentee[1] }} ({{ mentee[6] }}) &mdash; {{ mentee[3] or 'No goal' }}
                         </option>
                         {% endfor %}
                     </select>
@@ -115,11 +116,14 @@
     </div>
 </div>
 
-<!-- ACTIVE PAIRINGS (MATCHES) TABLE -->
+<!-- ACTIVE PAIRINGS (MATCHES) TABLE WITH MEETING COUNTS -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Active Pairings</h2>
+            <div>
+                <h2 class="h5 mb-1">Active Pairings</h2>
+                <small class="text-muted">Includes total & completed meeting counts between each mentor and mentee.</small>
+            </div>
             <input type="text" id="searchPairings" onkeyup="filterTable('searchPairings', 'tablePairings')" class="form-control form-control-sm w-25" placeholder="🔍 Search pairings...">
         </div>
 
@@ -131,6 +135,7 @@
                         <th>Mentee</th>
                         <th>Program</th>
                         <th>Date Paired</th>
+                        <th>Meeting Count</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -141,6 +146,10 @@
                         <td><strong>{{ match[2] }}</strong></td>
                         <td><span class="badge bg-info text-dark">{{ match[3] }}</span></td>
                         <td><small class="text-muted">{{ match[4] }}</small></td>
+                        <td>
+                            <span class="badge bg-primary fs-6">{{ match[8] }} meeting{{ 's' if match[8] != 1 else '' }}</span>
+                            <br><small class="text-success font-weight-bold">{{ match[9] }} completed</small>
+                        </td>
                         <td class="text-end">
                             <a href="{{ url_for('admin', edit_match=match[0]) }}#pairing-section" class="btn btn-sm btn-outline-primary me-1">Edit</a>
                             <form method="POST" action="{{ url_for('admin_delete_match', match_id=match[0]) }}" class="d-inline" onsubmit="return confirm('Unpair this mentor and mentee? An unpairing email notification will be sent.');">
@@ -150,7 +159,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-muted">No active pairings found.</td>
+                        <td colspan="6" class="text-muted">No active pairings found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -159,34 +168,62 @@
     </div>
 </div>
 
-<!-- ADD MENTOR FORM -->
-<div class="card shadow-sm mb-4">
+<!-- ADD / EDIT MENTOR FORM WITH GENDER AND HIGHEST ACADEMIC QUALIFICATION -->
+<div class="card shadow-sm mb-4" id="mentor-form-section">
     <div class="card-body">
-        <h2 class="h5 mb-3">Add New Mentor</h2>
-        <form method="POST" action="{{ url_for('admin_add_mentor') }}">
+        <h2 class="h5 mb-3">{{ 'Edit Mentor: ' + mentor_to_edit[1] if mentor_to_edit else 'Add New Mentor' }}</h2>
+        <form method="POST" action="{{ url_for('admin_edit_mentor', mentor_id=mentor_to_edit[0]) if mentor_to_edit else url_for('admin_add_mentor') }}">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Dr. Aminu Bello" required>
+                    <label class="form-label font-weight-bold">Full Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ mentor_to_edit[1] if mentor_to_edit else '' }}" placeholder="e.g. Dr. Aminu Bello" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" placeholder="mentor@example.com" required>
+                    <label class="form-label font-weight-bold">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ mentor_to_edit[2] if mentor_to_edit else '' }}" placeholder="mentor@example.com" required>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Expertise</label>
-                    <input type="text" name="expertise" class="form-control" placeholder="e.g. Data Science">
+                    <label class="form-label font-weight-bold">Gender</label>
+                    <select name="gender" class="form-select" required>
+                        <option value="">-- Select --</option>
+                        <option value="Male" {% if mentor_to_edit and mentor_to_edit[4] == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if mentor_to_edit and mentor_to_edit[4] == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if mentor_to_edit and mentor_to_edit[4] == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Highest Academic Qualification</label>
+                    <select name="highest_qualification" class="form-select" required>
+                        <option value="">-- Select Qualification --</option>
+                        <option value="Doctorate / Ph.D." {% if mentor_to_edit and mentor_to_edit[5] == 'Doctorate / Ph.D.' %}selected{% endif %}>Doctorate / Ph.D.</option>
+                        <option value="Master's Degree (M.Sc / M.A / M.Ed)" {% if mentor_to_edit and mentor_to_edit[5] == "Master's Degree (M.Sc / M.A / M.Ed)" %}selected{% endif %}>Master's Degree (M.Sc / M.A / M.Ed)</option>
+                        <option value="Postgraduate Diploma (PGD)" {% if mentor_to_edit and mentor_to_edit[5] == 'Postgraduate Diploma (PGD)' %}selected{% endif %}>Postgraduate Diploma (PGD)</option>
+                        <option value="Bachelor's Degree (B.Sc / B.A / B.Eng)" {% if mentor_to_edit and mentor_to_edit[5] == "Bachelor's Degree (B.Sc / B.A / B.Eng)" %}selected{% endif %}>Bachelor's Degree (B.Sc / B.A / B.Eng)</option>
+                        <option value="Higher National Diploma (HND)" {% if mentor_to_edit and mentor_to_edit[5] == 'Higher National Diploma (HND)' %}selected{% endif %}>Higher National Diploma (HND)</option>
+                        <option value="National Diploma (ND / Diploma)" {% if mentor_to_edit and mentor_to_edit[5] == 'National Diploma (ND / Diploma)' %}selected{% endif %}>National Diploma (ND / Diploma)</option>
+                        <option value="Professional Certification / Other" {% if mentor_to_edit and mentor_to_edit[5] == 'Professional Certification / Other' %}selected{% endif %}>Professional Certification / Other</option>
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Expertise / Domain</label>
+                    <input type="text" name="expertise" class="form-control" value="{{ mentor_to_edit[3] if mentor_to_edit else '' }}" placeholder="e.g. Cloud Architecture, Data Science">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Login Username</label>
+                    <input type="text" name="username" class="form-control" value="{{ mentor_to_edit[6] if mentor_to_edit else '' }}" {{ '' if mentor_to_edit else 'required' }}>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">{{ 'New Password (Optional)' if mentor_to_edit else 'Login Password' }}</label>
+                    <input type="password" name="password" class="form-control" placeholder="{{ 'Leave blank to keep unchanged' if mentor_to_edit else '' }}" {{ '' if mentor_to_edit else 'required' }}>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Add Mentor</button>
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">{{ 'Save Mentor Changes' if mentor_to_edit else 'Add Mentor' }}</button>
+                {% if mentor_to_edit %}
+                <a href="{{ url_for('admin') }}#mentor-form-section" class="btn btn-outline-secondary">Cancel</a>
+                {% endif %}
+            </div>
         </form>
     </div>
 </div>
@@ -213,22 +250,38 @@
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableMentors">
                         <thead class="table-light">
-                            <tr><th>Name</th><th>Email</th><th>Expertise</th><th class="text-end">Action</th></tr>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Gender</th>
+                                <th>Highest Qualification</th>
+                                <th>Expertise</th>
+                                <th>Assigned Mentees</th>
+                                <th class="text-end">Action</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {% for mentor in mentors %}
                             <tr>
-                                <td>{{ mentor[1] }}</td>
+                                <td><strong>{{ mentor[1] }}</strong></td>
                                 <td>{{ mentor[2] }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ mentor[5] }}</span></td>
+                                <td><small class="text-primary font-weight-bold">{{ mentor[6] }}</small></td>
                                 <td>{{ mentor[3] or 'Not set' }}</td>
+                                <td>
+                                    <span class="badge bg-info text-dark">{{ mentor[7] }} mentees</span>
+                                </td>
                                 <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMentorModal{{ mentor[0] }}">
+                                        ✏️ Edit
+                                    </button>
                                     <form method="POST" action="{{ url_for('admin_toggle_mentor_status', mentor_id=mentor[0]) }}" class="d-inline">
                                         <button class="btn btn-sm btn-outline-warning">Deactivate & Archive</button>
                                     </form>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted">No active mentors found.</td></tr>
+                            <tr><td colspan="7" class="text-muted">No active mentors found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -239,59 +292,163 @@
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
-                            <tr><th>Name</th><th>Email</th><th>Expertise</th><th class="text-end">Action</th></tr>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Gender</th>
+                                <th>Highest Qualification</th>
+                                <th>Expertise</th>
+                                <th class="text-end">Action</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {% for mentor in archived_mentors %}
                             <tr class="table-secondary">
                                 <td>{{ mentor[1] }}</td>
                                 <td>{{ mentor[2] }}</td>
+                                <td>{{ mentor[5] }}</td>
+                                <td>{{ mentor[6] }}</td>
                                 <td>{{ mentor[3] or 'Not set' }}</td>
                                 <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMentorModal{{ mentor[0] }}">
+                                        ✏️ Edit
+                                    </button>
                                     <form method="POST" action="{{ url_for('admin_toggle_mentor_status', mentor_id=mentor[0]) }}" class="d-inline">
                                         <button class="btn btn-sm btn-success">Reactivate</button>
                                     </form>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted">No archived mentors.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No archived mentors.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+
+        <!-- EDIT MENTOR MODALS (FOR ACTIVE & ARCHIVED) -->
+        {% for mentor in mentors + archived_mentors %}
+        <div class="modal fade" id="editMentorModal{{ mentor[0] }}" tabindex="-1" aria-labelledby="editMentorModalLabel{{ mentor[0] }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content text-start">
+                    <form method="POST" action="{{ url_for('admin_edit_mentor', mentor_id=mentor[0]) }}">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="editMentorModalLabel{{ mentor[0] }}">Edit Mentor: {{ mentor[1] }}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Full Name</label>
+                                    <input type="text" name="name" class="form-control" value="{{ mentor[1] }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Email</label>
+                                    <input type="email" name="email" class="form-control" value="{{ mentor[2] }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Gender</label>
+                                    <select name="gender" class="form-select" required>
+                                        <option value="">-- Select Gender --</option>
+                                        <option value="Male" {% if mentor[5] == 'Male' %}selected{% endif %}>Male</option>
+                                        <option value="Female" {% if mentor[5] == 'Female' %}selected{% endif %}>Female</option>
+                                        <option value="Other" {% if mentor[5] == 'Other' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Highest Academic Qualification</label>
+                                    <select name="highest_qualification" class="form-select" required>
+                                        <option value="">-- Select Qualification --</option>
+                                        <option value="Doctorate / Ph.D." {% if mentor[6] == 'Doctorate / Ph.D.' %}selected{% endif %}>Doctorate / Ph.D.</option>
+                                        <option value="Master's Degree (M.Sc / M.A / M.Ed)" {% if mentor[6] == "Master's Degree (M.Sc / M.A / M.Ed)" %}selected{% endif %}>Master's Degree (M.Sc / M.A / M.Ed)</option>
+                                        <option value="Postgraduate Diploma (PGD)" {% if mentor[6] == 'Postgraduate Diploma (PGD)' %}selected{% endif %}>Postgraduate Diploma (PGD)</option>
+                                        <option value="Bachelor's Degree (B.Sc / B.A / B.Eng)" {% if mentor[6] == "Bachelor's Degree (B.Sc / B.A / B.Eng)" %}selected{% endif %}>Bachelor's Degree (B.Sc / B.A / B.Eng)</option>
+                                        <option value="Higher National Diploma (HND)" {% if mentor[6] == 'Higher National Diploma (HND)' %}selected{% endif %}>Higher National Diploma (HND)</option>
+                                        <option value="National Diploma (ND / Diploma)" {% if mentor[6] == 'National Diploma (ND / Diploma)' %}selected{% endif %}>National Diploma (ND / Diploma)</option>
+                                        <option value="Professional Certification / Other" {% if mentor[6] == 'Professional Certification / Other' %}selected{% endif %}>Professional Certification / Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label font-weight-bold">Expertise / Domain</label>
+                                    <input type="text" name="expertise" class="form-control" value="{{ mentor[3] or '' }}" placeholder="e.g. Cloud Architecture, Data Science">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Login Username</label>
+                                    <input type="text" name="username" class="form-control" value="{{ mentor[8] or '' }}">
+                                    <small class="text-muted">Username used to log into the account.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">New Password</label>
+                                    <input type="password" name="password" class="form-control" placeholder="Leave blank to keep existing password">
+                                    <small class="text-muted">Only fill this if you want to reset password.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
-<!-- ADD MENTEE FORM -->
-<div class="card shadow-sm mb-4">
+<!-- ADD / EDIT MENTEE FORM WITH GENDER AND ACADEMIC STATUS (PENULTIMATE, FINAL YEAR, RECENT GRADUATE) -->
+<div class="card shadow-sm mb-4" id="mentee-form-section">
     <div class="card-body">
-        <h2 class="h5 mb-3">Add New Mentee</h2>
-        <form method="POST" action="{{ url_for('admin_add_mentee') }}">
+        <h2 class="h5 mb-3">{{ 'Edit Mentee: ' + mentee_to_edit[1] if mentee_to_edit else 'Add New Mentee' }}</h2>
+        <form method="POST" action="{{ url_for('admin_edit_mentee', mentee_id=mentee_to_edit[0]) if mentee_to_edit else url_for('admin_add_mentee') }}">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Fatima Sani" required>
+                    <label class="form-label font-weight-bold">Full Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ mentee_to_edit[1] if mentee_to_edit else '' }}" placeholder="e.g. Fatima Sani" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" placeholder="mentee@example.com" required>
+                    <label class="form-label font-weight-bold">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ mentee_to_edit[2] if mentee_to_edit else '' }}" placeholder="mentee@example.com" required>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Goal / Interest</label>
-                    <input type="text" name="goal" class="form-control" placeholder="e.g. Web Dev">
+                    <label class="form-label font-weight-bold">Gender</label>
+                    <select name="gender" class="form-select" required>
+                        <option value="">-- Select --</option>
+                        <option value="Male" {% if mentee_to_edit and mentee_to_edit[4] == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if mentee_to_edit and mentee_to_edit[4] == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if mentee_to_edit and mentee_to_edit[4] == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Academic Status</label>
+                    <select name="academic_status" class="form-select" required>
+                        <option value="">-- Choose Status --</option>
+                        <option value="Penultimate Student" {% if mentee_to_edit and mentee_to_edit[5] == 'Penultimate Student' %}selected{% endif %}>Penultimate Student</option>
+                        <option value="Final Year Student" {% if mentee_to_edit and mentee_to_edit[5] == 'Final Year Student' %}selected{% endif %}>Final Year Student</option>
+                        <option value="Recent Graduate" {% if mentee_to_edit and mentee_to_edit[5] == 'Recent Graduate' %}selected{% endif %}>Recent Graduate</option>
+                    </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Career Goal / Interest</label>
+                    <input type="text" name="goal" class="form-control" value="{{ mentee_to_edit[3] if mentee_to_edit else '' }}" placeholder="e.g. Cloud DevOps Engineer">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Login Username</label>
+                    <input type="text" name="username" class="form-control" value="{{ mentee_to_edit[6] if mentee_to_edit else '' }}" {{ '' if mentee_to_edit else 'required' }}>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">{{ 'New Password (Optional)' if mentee_to_edit else 'Login Password' }}</label>
+                    <input type="password" name="password" class="form-control" placeholder="{{ 'Leave blank to keep unchanged' if mentee_to_edit else '' }}" {{ '' if mentee_to_edit else 'required' }}>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Add Mentee</button>
+            <div class="mt-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">{{ 'Save Mentee Changes' if mentee_to_edit else 'Add Mentee' }}</button>
+                {% if mentee_to_edit %}
+                <a href="{{ url_for('admin') }}#mentee-form-section" class="btn btn-outline-secondary">Cancel</a>
+                {% endif %}
+            </div>
         </form>
     </div>
 </div>
@@ -318,22 +475,34 @@
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableMentees">
                         <thead class="table-light">
-                            <tr><th>Name</th><th>Email</th><th>Goal</th><th class="text-end">Action</th></tr>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Gender</th>
+                                <th>Academic Status</th>
+                                <th>Goal</th>
+                                <th class="text-end">Action</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {% for mentee in mentees %}
                             <tr>
-                                <td>{{ mentee[1] }}</td>
+                                <td><strong>{{ mentee[1] }}</strong></td>
                                 <td>{{ mentee[2] }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ mentee[5] }}</span></td>
+                                <td><span class="badge bg-secondary">{{ mentee[6] }}</span></td>
                                 <td>{{ mentee[3] or 'Not set' }}</td>
                                 <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMenteeModal{{ mentee[0] }}">
+                                        ✏️ Edit
+                                    </button>
                                     <form method="POST" action="{{ url_for('admin_toggle_mentee_status', mentee_id=mentee[0]) }}" class="d-inline">
                                         <button class="btn btn-sm btn-outline-warning">Deactivate & Archive</button>
                                     </form>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted">No active mentees found.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No active mentees found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -344,28 +513,104 @@
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
-                            <tr><th>Name</th><th>Email</th><th>Goal</th><th class="text-end">Action</th></tr>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Gender</th>
+                                <th>Academic Status</th>
+                                <th>Goal</th>
+                                <th class="text-end">Action</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {% for mentee in archived_mentees %}
                             <tr class="table-secondary">
                                 <td>{{ mentee[1] }}</td>
                                 <td>{{ mentee[2] }}</td>
+                                <td>{{ mentee[5] }}</td>
+                                <td>{{ mentee[6] }}</td>
                                 <td>{{ mentee[3] or 'Not set' }}</td>
                                 <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMenteeModal{{ mentee[0] }}">
+                                        ✏️ Edit
+                                    </button>
                                     <form method="POST" action="{{ url_for('admin_toggle_mentee_status', mentee_id=mentee[0]) }}" class="d-inline">
                                         <button class="btn btn-sm btn-success">Reactivate</button>
                                     </form>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted">No archived mentees.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No archived mentees.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+
+        <!-- EDIT MENTEE MODALS (FOR ACTIVE & ARCHIVED) -->
+        {% for mentee in mentees + archived_mentees %}
+        <div class="modal fade" id="editMenteeModal{{ mentee[0] }}" tabindex="-1" aria-labelledby="editMenteeModalLabel{{ mentee[0] }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content text-start">
+                    <form method="POST" action="{{ url_for('admin_edit_mentee', mentee_id=mentee[0]) }}">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title" id="editMenteeModalLabel{{ mentee[0] }}">Edit Mentee: {{ mentee[1] }}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Full Name</label>
+                                    <input type="text" name="name" class="form-control" value="{{ mentee[1] }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Email</label>
+                                    <input type="email" name="email" class="form-control" value="{{ mentee[2] }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Gender</label>
+                                    <select name="gender" class="form-select" required>
+                                        <option value="">-- Select Gender --</option>
+                                        <option value="Male" {% if mentee[5] == 'Male' %}selected{% endif %}>Male</option>
+                                        <option value="Female" {% if mentee[5] == 'Female' %}selected{% endif %}>Female</option>
+                                        <option value="Other" {% if mentee[5] == 'Other' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Academic Status</label>
+                                    <select name="academic_status" class="form-select" required>
+                                        <option value="">-- Choose Status --</option>
+                                        <option value="Penultimate Student" {% if mentee[6] == 'Penultimate Student' %}selected{% endif %}>Penultimate Student</option>
+                                        <option value="Final Year Student" {% if mentee[6] == 'Final Year Student' %}selected{% endif %}>Final Year Student</option>
+                                        <option value="Recent Graduate" {% if mentee[6] == 'Recent Graduate' %}selected{% endif %}>Recent Graduate</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label font-weight-bold">Career Goal / Interest</label>
+                                    <input type="text" name="goal" class="form-control" value="{{ mentee[3] or '' }}" placeholder="e.g. Cloud DevOps Engineer">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">Login Username</label>
+                                    <input type="text" name="username" class="form-control" value="{{ mentee[7] or '' }}">
+                                    <small class="text-muted">Username used to log into the account.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold">New Password</label>
+                                    <input type="password" name="password" class="form-control" placeholder="Leave blank to keep existing password">
+                                    <small class="text-muted">Only fill this if you want to reset password.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
@@ -376,19 +621,19 @@
         <form method="POST" action="{{ url_for('admin_add_program') }}">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Program Name</label>
+                    <label class="form-label font-weight-bold">Program Name</label>
                     <input type="text" name="program_name" class="form-control" placeholder="e.g. Software Engineering 2026" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Start Date</label>
+                    <label class="form-label font-weight-bold">Start Date</label>
                     <input type="date" name="start_date" class="form-control" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">End Date</label>
+                    <label class="form-label font-weight-bold">End Date</label>
                     <input type="date" name="end_date" class="form-control" required>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Description</label>
+                    <label class="form-label font-weight-bold">Description</label>
                     <input type="text" name="description" class="form-control" placeholder="Brief summary">
                 </div>
             </div>
@@ -428,14 +673,14 @@
     </div>
 </div>
 
-<!-- SCHEDULE MEETING -->
+<!-- SCHEDULE MEETING WITH TEAMS LINK & DETAILS -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <h2 class="h5 mb-3">Schedule Meeting</h2>
         <form method="POST" action="{{ url_for('admin_add_meeting') }}">
             <div class="row g-3">
-                <div class="col-md-5">
-                    <label class="form-label">Mentor / Mentee Pair</label>
+                <div class="col-md-4">
+                    <label class="form-label font-weight-bold">Mentor / Mentee Pair</label>
                     <select name="match_id" class="form-select" required>
                         <option value="">Select active pairing</option>
                         {% for match in matches %}
@@ -444,54 +689,91 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Meeting Date & Time</label>
+                    <label class="form-label font-weight-bold">Meeting Date & Time</label>
                     <input type="datetime-local" name="meeting_date" class="form-control" required>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Notes / Agenda</label>
-                    <input type="text" name="notes" class="form-control" placeholder="e.g. Monthly Check-in">
+                <div class="col-md-5">
+                    <label class="form-label font-weight-bold">Meeting Title / Topic</label>
+                    <input type="text" name="notes" class="form-control" placeholder="e.g. Monthly Progress & CV Review" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Meeting Details / Agenda</label>
+                    <input type="text" name="meeting_details" class="form-control" placeholder="e.g. Review portfolio, discuss mock interview results">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Microsoft Teams Meeting Link</label>
+                    <input type="url" name="meeting_link" class="form-control" placeholder="https://teams.microsoft.com/l/meetup-join/...">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Schedule & Notify</button>
+            <button type="submit" class="btn btn-primary mt-3">Schedule & Notify Pair</button>
         </form>
     </div>
 </div>
 
-<!-- MEETINGS MANAGEMENT -->
+<!-- MEETINGS MANAGEMENT: CAN ONLY DELETE UPCOMING MEETINGS -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <h2 class="h5 mb-3">Manage Scheduled Meetings</h2>
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead class="table-light">
-                    <tr><th>Date</th><th>Mentor</th><th>Mentee</th><th>Notes</th><th>Status</th><th class="text-end">Action</th></tr>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Mentor</th>
+                        <th>Mentee</th>
+                        <th>Topic & Details</th>
+                        <th>Teams Link</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {% for meeting in meetings %}
                     <tr>
-                        <td>{{ meeting[1] }}</td>
+                        <td><strong>{{ meeting[1] }}</strong></td>
                         <td>{{ meeting[2] }}</td>
                         <td>{{ meeting[3] }}</td>
-                        <td>{{ meeting[4] or 'No notes' }}</td>
+                        <td>
+                            <strong>{{ meeting[4] or 'No topic' }}</strong>
+                            {% if meeting[7] %}<br><small class="text-muted">{{ meeting[7] }}</small>{% endif %}
+                        </td>
+                        <td>
+                            {% if meeting[6] %}
+                            <a href="{{ meeting[6] }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-camera-video"></i> Join Teams
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No link</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if meeting[5] == 'Scheduled' %}
-                            <span class="badge bg-warning text-dark">Scheduled</span>
+                                {% if meeting[8] %}
+                                <span class="badge bg-warning text-dark">Upcoming</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Past</span>
+                                {% endif %}
+                            {% elif meeting[5] == 'Requested' %}
+                            <span class="badge bg-info text-dark">Requested</span>
                             {% elif meeting[5] == 'Completed' %}
                             <span class="badge bg-success">Completed</span>
                             {% else %}
-                            <span class="badge bg-secondary">Cancelled</span>
+                            <span class="badge bg-danger">Cancelled</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            {% if meeting[5] == 'Scheduled' %}
-                            <form method="POST" action="{{ url_for('admin_cancel_meeting', meeting_id=meeting[0]) }}" class="d-inline" onsubmit="return confirm('Cancel this meeting?');">
-                                <button class="btn btn-sm btn-outline-danger">Cancel</button>
+                            {# REQUIREMENT 5: Past meetings CANNOT be deleted, only upcoming meetings can be deleted #}
+                            {% if meeting[8] and meeting[5] in ('Scheduled', 'Requested') %}
+                            <form method="POST" action="{{ url_for('admin_cancel_meeting', meeting_id=meeting[0]) }}" class="d-inline" onsubmit="return confirm('Delete this upcoming meeting?');">
+                                <button class="btn btn-sm btn-outline-danger">Delete</button>
                             </form>
+                            {% else %}
+                            <span class="badge bg-light text-muted border">Past (Locked)</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-muted">No meetings found.</td></tr>
+                    <tr><td colspan="7" class="text-muted">No meetings found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
